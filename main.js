@@ -1,99 +1,101 @@
-let URL = "http://localhost:3000/posts";
-var global;
-LoadSync();
-function Load(){
-    fetch(URL).then(function(response){
-        return response.json();
-    }).then(function(data){
-        console.log(data);
-    }).catch(function(error){
-        console.log(error);
-    })
-}
-async function LoadSync(){
-    try {
-        let response = await fetch(URL);
-        let posts = await response.json();
-        posts = posts.filter(p=>!p.isDeleted);
-        global = posts;
-        let body = document.getElementById("body");
-        body.innerHTML="";
-        for (const post of posts) {
-            body.innerHTML+=ConvertFromObjToHTML(post);
-        }
-    } catch (error) {
-        console.log(error);
-    }
-}
-function ConvertFromObjToHTML(post){
-    let string = `<tr>`;
-    string +=`<td>${post.id}</td>`
-    string +=`<td>${post.title}</td>`
-    string +=`<td>${post.views}</td>`
-    string +=`<td><button onclick="Delete(${post.id});return false">Delete </button></td>`
-    string += `</tr>`
-    return string;
-}
+const express = require('express')
+const app = express()
+const port = 3000
+app.use(express.json())
 
-function CheckExist(id){
-    return global.find(function(p){
-        return p.id==id
-    })
-}
+let posts = [
+    {
+      "id": "1",
+      "title": "a title",
+      "views": 100
+    },
+    {
+      "id": "2",
+      "title": "another title",
+      "views": 200,
+      "isDeleted": true
+    },
+    {
+      "id": "4",
+      "title": "heeheh",
+      "views": 500
+    }]
+
+app.get('/', (req, res) => {
+  res.send(posts)
+})
+
 function getMax(){
-    let ids = global.map(p=>Number.parseInt(p.id)); 
+    let ids = posts.map(p=>Number.parseInt(p.id));
     return Math.max(...ids);
 }
 
-function Save(){
-    let id = document.getElementById("id").value;
-    if(id.length==0||isNaN(id)){
-        id = (getMax()+1)+"";
+function GenString(length){
+    let source = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghiklmnopqrstuvwxyz0123456789";
+    let result = "";
+    for (let index = 0; index < length; index++) {
+       let rd = Math.floor(Math.random()*source.length);
+       result+=source.charAt(rd);
     }
-    let Obj = {
-        id:id,
-        title:document.getElementById("title").value,
-        views:document.getElementById("views").value
-    }
-    if(CheckExist(id)){
-        fetch(URL+"/"+id,{
-            method:'PUT',
-            body:JSON.stringify(Obj),
-            headers:{
-                "Content-Type":"application/json",
-            }
-        }).then(function(){
-            LoadSync();
-        })
-    }else{
-        fetch(URL,{
-            method:'POST',
-            body:JSON.stringify(Obj),
-            headers:{
-                "Content-Type":"application/json",
-            }
-        }).then(function(){
-            LoadSync();
-        })
-    }
+    return result;
 }
 
-function Delete(id){
-    let post = CheckExist(id);
+app.post('/', (req, res) => {
+    console.log(req.body);
+    let newObj = {
+        id: GenString(16),
+        title:req.body.title,
+        views:req.body.views
+    }
+    posts.push(newObj);
+    res.send(newObj);
+})
+app.put('/:id', (req, res) => {
+    let id = req.params.id;
+    let post = posts.find(p=>p.id==id);
+    let body = req.body;
     if(post){
-        post.isDeleted = true;
-        fetch(URL+"/"+id,{
-            method:'PUT',
-            body:JSON.stringify(post),
-            headers:{
-                "Content-Type":"application/json",
-            }
-        }).then(function(){
-            LoadSync();
-        })
+        //update
+        if(body.title){
+            post.title=body.title;
+        }
+        if(body.views){
+            post.views=body.views;
+        }
+        res.send(post);
     }else{
-        //
+        res.status(404).send({
+            message:"khong tim thay id"
+        })
+    }
+})
+app.put('/:id', (req, res) => {
+    let id = req.params.id;
+    let post = posts.find(p=>p.id==id);
+    if(post){
+        //update
+        post.isDeleted= true;
+        res.send(post);
+    }else{
+        res.status(404).send({
+            message:"khong tim thay id"
+        })
+    }
+})
+
+
+app.get('/:idhehe', (req, res) => {
+    let id = req.params.idhehe;
+    let post = posts.find(p=>p.id==id);
+    if(post){
+        res.status(200).send(post)
+    }else{
+        res.status(404).send({
+            message:"khong tim thay id"
+        })
     }
     
-}
-
+})
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`)
+})
